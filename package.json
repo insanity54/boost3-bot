@@ -1,0 +1,29 @@
+{
+  "type": "module",
+  "name": "sakuraboost-chatbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cloudinary/url-gen": "^1.10.0",
+    "@twurple/auth": "^6.1.1",
+    "@twurple/chat": "^6.1.1",
+    "@twurple/easy-bot": "^6.1.1",
+    "cloudinary": "^1.36.1",
+    "execa": "^7.1.1",
+    "fastify": "^4.15.0",
+    "got": "^12.6.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
