@@ -5,23 +5,40 @@ dotenv.config()
 
 import { RefreshingAuthProvider } from '@twurple/auth';
 import { ChatClient } from '@twurple/chat';
+import { registerOfferHandler, registerBuyHandler } from './lib/offer.js';
+import { getTwitchTokenData, setTwitchTokenData } from './lib/tokens.js';
 import { promises as fs } from 'fs';
+import { registerAuctions } from './lib/auction.js'
+import { getBotUsers, getUser } from './lib/user.js'
 import _ from 'lodash';
 import { got } from 'got';
-import snapshot from './lib/snapshot.js'
 import { v2 } from 'cloudinary';
 const cloudinary = v2
 
-new Array(
+const appEnv = new Array(
   'TWITCH_CLIENT_ID',
   'TWITCH_CLIENT_SECRET',
   'STRAPI_API_KEY',
   'CLOUDINARY_CLOUD',
   'CLOUDINARY_KEY',
   'CLOUDINARY_SECRET',
-).forEach((ev) => { 
-  if (typeof process.env[ev] === 'undefined') throw new Error(`${ev} is undefined in env`) 
-})
+  'BACKEND_URL',
+  'FRONTEND_URL',
+  'PAYPAL_CLIENT_ID',
+  'PAYPAL_SECRET_KEY',
+  'PAYPAL_URL',
+  'BOT_NAME',
+)
+
+const appContext = {
+  env: appEnv.reduce((acc, ev) => {
+    if (typeof process.env[ev] === 'undefined') throw new Error(`${ev} is undefined in env`);
+    acc[ev] = process.env[ev];
+    return acc;
+  }, {})
+};
+
+console.log(appContext)
 
 
 
@@ -32,132 +49,97 @@ const config = cloudinary.config({
   secure: true
 })
 
-const userName = 'cj_clippy'
-const usage = '!offer <price> <title>'
-const backend = 'https://boost3.sbtp.xyz'
-const frontend = 'https://boost.sbtp.xyz'
+const backend = process.env.BACKEND_URL
+const frontend = process.env.FRONTEND_URL
 
 const authProvider = new RefreshingAuthProvider(
   {
     clientId: process.env.TWITCH_CLIENT_ID,
     clientSecret: process.env.TWITCH_CLIENT_SECRET,
-    onRefresh: async (userId, newTokenData) => await fs.writeFile(`./tokens/tokens.${userId}.json`, JSON.stringify(newTokenData, null, 4), 'UTF-8')
+    onRefresh: async (userId, newTokenData) => {
+      try {
+        await setTwitchTokenData(
+          process.env.BACKEND_URL,
+          process.env.STRAPI_API_KEY,
+          userId,
+          newTokenData,
+        )
+      } catch (e) {
+        console.error(e)
+        console.error(e.options.body)
+        console.error(e.code)
+        console.log('FUCK')
+      }
+    }
   }
 );
 
 
-// greets ChatGPT
-function dollarsToCents(dollarValue) {
-  // Remove any commas from the dollar value string
-  dollarValue = dollarValue.replace('$', '').replace(',', '');
-  // Multiply by 100 to get cents
-  var centsValue = Math.round(parseFloat(dollarValue) * 100);
-  return centsValue;
-}
 
 
-async function takeSnapshot (channel) {
-  const img = await snapshot(channel, new Date())
-
-  return new Promise((resolve, reject) => {
-    const upload = cloudinary.uploader.upload_stream(
-      {format: 'jpg'}, 
-      (err, result) => {
-        if (err) reject(err)
-        resolve(result.url)
-      }
-    ).end(img);
-  });
-}
-
-
-
-async function createOffer (date, price, title) {
-  if (date === undefined) throw new Error('date was missing');
-  if (price === undefined) throw new Error('price was missing');
-  if (title === undefined) throw new Error('title was missing');
-
-  const imageUrl = await takeSnapshot('bailiffofhaven')
-
-  const res = await got.post(
-    encodeURI(`${backend}/api/offers`),
-    {
-      json: {
-        "data": {
-          "price_cents": dollarsToCents(price),
-          "date": date,
-          "title": title.join(' '),
-          "image": imageUrl
-        }
-      },
-      headers: {
-        'Authorization': `Bearer ${process.env.STRAPI_API_KEY}`
-      }
-    }
-  )
-  .json()
-  const id = res.data.id
-  const url = `${frontend}/?offer=${id}`
-
-
-
-
-  return url
-}
-
-
-const tokenData = JSON.parse(await fs.readFile('./tokens/tokens.675480505.json', 'UTF-8'));
-
-
-await authProvider.addUserForToken(tokenData, ['chat']);
-
-
-
-
-const chatClient = new ChatClient({
-  authProvider, 
-  channels: ['cj_clippy']
-});
 
 async function main() {
-  await chatClient.connect()
-  console.log(`  connected!`)
+
+  const channels = await getBotUsers(appContext)
+
+  const tokenData = await getTwitchTokenData(
+    process.env.FRONTEND_URL,
+    process.env.BACKEND_URL,
+    process.env.BOT_NAME,
+    process.env.STRAPI_API_KEY,
+  )
+
+
+
+  await authProvider.addUser(process.env.BOT_NAME, tokenData, ['chat']);
+
+
+  const chatClient = new ChatClient({
+    authProvider, 
+    channels
+  });
+
+  const auctions = registerAuctions(appContext, channels, chatClient)
+
+  const offerHandler = registerOfferHandler(
+    chatClient,
+    appContext,
+    auctions
+  )
+
+  const buyHandler = registerBuyHandler(
+    chatClient,
+    appContext,
+    auctions
+  )
+
+
+  
+
+  chatClient.onJoin(async (channel, user) => {
+    const ch = channel.replace('#', '')
+    const strapiUser = await getUser(appContext, ch)
+    if (strapiUser.isFirstTime) {
+      chatClient.say(channel, `Let's make some sales! Use '!offer <title>' to get started.`)
+      await setIsFirstTime(appContext, strapiUser.id, false)
+    }
+  })
 
   chatClient.onMessage((channel, user, text, msg) => {
-    
+  
+    // !offer command
+    //   * [x] create offer in db     (db)
+    //   * [x] start Dutch auction    (game)
+    //   * [x] queue or take snapshot (snapshot)
+    offerHandler(channel, user, text, msg)
 
 
-    console.log(`name:${msg.userInfo.userName}, color:${msg.userInfo.color}`)
-
-    if (msg.userInfo.userName === userName && text.startsWith('!offer')) {
-      // createOffer(msg.userInfo.userName{username: msg.userInfo.userName, color: msg.userInfo.color, date: new Date()})
-
-      const t = text.split(' ')
-      const price = t[1]
-      const title = t.slice(2)
-
-      if (_.isEmpty(price)) {
-        chatClient.say(channel, `Missing price. ${usage}`)
-        return
-      }
-
-      if (_.isEmpty(title)) {
-        chatClient.say(channel, `Missing title. ${usage}`)
-        return
-      }
-
-      createOffer(new Date(), price, title).then((url) => {
-        chatClient.say(channel, `New Offer! ${url} ${title.join(' ')}`)
-      }).catch((e) => {
-        console.error(e)
-        chatClient.say(channel, `failed to create offer. ${e}`)
-        // @todo error logging
-      })
-
-
-    }
-
+    // !buy command
+    buyHandler(channel, user, text, msg)
+ 
   })
+
+  chatClient.connect()
 }
 
 
