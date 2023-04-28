@@ -38,7 +38,10 @@ const appContext = {
   }, {})
 };
 
-console.log(appContext)
+if (process.env.NODE_ENV !== 'production') {
+  console.log(`here is the appContext`)
+  console.log(appContext)
+}
 
 
 
@@ -65,10 +68,10 @@ const authProvider = new RefreshingAuthProvider(
           newTokenData,
         )
       } catch (e) {
+        console.error('error while refreshing twitch token')
         console.error(e)
         console.error(e.options.body)
         console.error(e.code)
-        console.log('FUCK')
       }
     }
   }
