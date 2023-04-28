@@ -11,7 +11,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Unlicense",
   "dependencies": {
     "@cloudinary/url-gen": "^1.10.0",
     "@twurple/auth": "^6.1.1",
