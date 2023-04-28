@@ -24,9 +24,6 @@ const appEnv = new Array(
   'CLOUDINARY_SECRET',
   'BACKEND_URL',
   'FRONTEND_URL',
-  'PAYPAL_CLIENT_ID',
-  'PAYPAL_SECRET_KEY',
-  'PAYPAL_URL',
   'BOT_NAME',
 )
 

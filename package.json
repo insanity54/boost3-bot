@@ -19,6 +19,7 @@
     "@twurple/easy-bot": "^6.1.1",
     "cloudinary": "^1.36.1",
     "date-fns": "^2.29.3",
+    "dotenv": "^16.0.3",
     "execa": "^7.1.1",
     "fastify": "^4.15.0",
     "got": "^12.6.0",

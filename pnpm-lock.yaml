@@ -19,6 +19,9 @@ dependencies:
   date-fns:
     specifier: ^2.29.3
     version: 2.29.3
+  dotenv:
+    specifier: ^16.0.3
+    version: 16.0.3
   execa:
     specifier: ^7.1.1
     version: 7.1.1
@@ -661,6 +664,11 @@ packages:
     engines: {node: '>= 0.8'}
     dev: false
     optional: true
+
+  /dotenv@16.0.3:
+    resolution: {integrity: sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==}
+    engines: {node: '>=12'}
+    dev: false
 
   /es-abstract@1.21.2:
     resolution: {integrity: sha512-y/B5POM2iBnIxCiernH1G7rC9qQoM77lLIMQLuob0zhp8C56Po81+2Nj0WFKnd0pNReDTnkYryc+zhOzpEIROg==}
